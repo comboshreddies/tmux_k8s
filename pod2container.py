@@ -10,4 +10,6 @@ def pod2container(base_pod_name):
         return '-'.join(base_pod_name.split("-")[:2])
     if re.search(r'^specific-pod-name', base_pod_name) :
         return 'specific-container-name'
+    if re.search(r'^nginx-sample', base_pod_name) :
+        return 'nginx'
     return base_pod_name
