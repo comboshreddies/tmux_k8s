@@ -5,6 +5,8 @@ KUBE_CTL_EXEC = KUBE_CTL + " exec {pod} -c {p2c(pod)} -- "
 KUBE_CTL_EXEC_IT = KUBE_CTL + " exec -it {pod} -c {p2c(pod)} -- "
 NO_RETURN = "# no return"
 DO_ATTACH = "# attach"
+FINAL_EXEC = "# exec : "
+KUBE_CTL_LOGS = KUBE_CTL + "logs -f --prefix=true {pod} -c {pod} -c {p2c(pod)}"
 
 sequences={
     'env' : [ KUBE_CTL_EXEC + 'env > {pod}.env' ],
@@ -84,6 +86,10 @@ sequences={
         NO_RETURN,
         DO_ATTACH
         ],
+    'logs1' : [
+    KUBE_CTL_LOGS + ' | sed "s/^/{pod} : /g" > {k8s_namespace}_logs_{pod}_{p2c(pod)}.log',
+    FINAL_EXEC + 'parallel -j0 --lb cat {k8s_namespace}_logs_*'
+    ],
     'terminate-all' : [],
     'dry' : [ "echo \"ctx {k8s_context} ns {k8s_namespace} pod {pod} co {p2c(pod)}\" " ]
     }

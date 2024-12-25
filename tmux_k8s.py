@@ -14,8 +14,10 @@ from libtmux._internal.query_list import MultipleObjectsReturned
 from pod2container import pod2container as p2c
 from sequences import sequences
 
+COMMENT_TAG = "# "
 NO_RETURN = "# no return"
 DO_ATTACH = "# attach"
+FINAL_EXEC = "# exec : "
 
 SLEEP_TIME = 300 
 WAIT_FOR_PROMPT_SECONDS = 2
@@ -141,7 +143,7 @@ def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
                 print("executing -> " + execute)
                 temp_pane.send_keys(execute)
                 fsm_step_executed[pod] = True
-                if len(sequence) > fsm_step[pod] and sequence[fsm_step[pod]+1] == NO_RETURN:
+                if len(sequence) > fsm_step[pod] and sequence[fsm_step[pod]+1].startswith(COMMENT_TAG):
                     fsm_step[pod] = STEP_COMPLETE
             else:
                 # fsm step is executed,  waiting for prompt
@@ -244,6 +246,11 @@ def main():
     if sequences[tmux_cmd][-1] == DO_ATTACH:
         print(f"--- attaching tmux ---")
         os.execve('/bin/sh',['/bin/sh','-c',f'tmux attach-session -t {session_name}'],os.environ)
+    elif sequences[tmux_cmd][-1].startswith(FINAL_EXEC):
+        to_exec = sequences[tmux_cmd][-1][len(FINAL_EXEC):]
+        parsed_exec = eval(f"f'{to_exec}'")
+        print(f"--- final_exec : " + parsed_exec)
+        os.execve('/bin/sh',['/bin/sh','-c',parsed_exec],os.environ)
     else:
         print(f"--- waiting {SLEEP_TIME} seconds before closing ---")
         print(f"--- after {SLEEP_TIME} program will exit and leave all tmux_sessions ---")
