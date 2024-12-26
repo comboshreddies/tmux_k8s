@@ -63,24 +63,41 @@ def get_fsm_prompt(pods_list,sess_handle,session_name):
 def simple_help(args):
     """ print simple help """
     print(args[0] + " <sequence> <k8s-context> <k8s-namespace> [<k8s-label-selector>]")
-    print("or")
+    print("or to list available sequences")
     print(args[0] + " list")
+    print("or to get details of a sequence")
+    print(args[0] + " info <sequence>")
+
+
+def check_2_args(seq,args):
+    """ check 2 args """
+    if args[1] == 'list':
+        print("Available commands:")
+        for item in seq.keys():
+            if seq[item][0].startswith(COMMENT_TAG):
+                print(f"  {item} - {seq[item][0][len(COMMENT_TAG):]}")
+            else:
+                print(f"  {item} - no description")
+    else:
+        simple_help(args)
+    sys.exit(1)
+
+def check_3_args(seq,args):
+    """ check 3 args """
+    if args[1] == 'info' and args[2] in seq:
+        for line in seq[args[2]]:
+            print(line)
+    else:
+        simple_help(args)
+    sys.exit(0)
 
 
 def check_args(seq,args):
     """ check cli args """
     if len(args) == 2 :
-        if args[1] == 'list':
-            print("Available commands:")
-            for item in seq.items():
-                if seq[item][0].startswith(COMMENT_TAG):
-                    print(f"  {item} - {seq[item][0][len(COMMENT_TAG):]}")
-                else:
-                    print(f"  {item} - no description")
-            sys.exit(0)
-        else:
-            simple_help(args)
-            sys.exit(1)
+        check_2_args(seq,args)
+    if len(args) == 3:
+        check_3_args(seq,args)
     if len(args) < 4 :
         simple_help(args)
         sys.exit(2)
@@ -279,7 +296,7 @@ def main():
         terminate_all()
     elif sequences[tmux_cmd][-1].startswith(FINAL_EXEC):
         to_exec = sequences[tmux_cmd][-1][len(FINAL_EXEC):]
-        parsed_exec = eval(f"f'{to_exec}'")
+        parsed_exec = eval(f'f"{to_exec}"')
         print(f"--- final_exec : {parsed_exec}")
         #os.execve('/bin/sh',['/bin/sh','-c',parsed_exec],os.environ)
         #os.system(parsed_exec)
