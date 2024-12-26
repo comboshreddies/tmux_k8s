@@ -71,7 +71,12 @@ def check_args(seq,args):
     """ check cli args """
     if len(args) == 2 :
         if args[1] == 'list':
-            print(' '.join(seq.keys()))
+            print("Available commands:")
+            for item in seq.items():
+                if seq[item][0].startswith(COMMENT_TAG):
+                    print(f"  {item} - {seq[item][0][len(COMMENT_TAG):]}")
+                else:
+                    print(f"  {item} - no description")
             sys.exit(0)
         else:
             simple_help(args)
@@ -233,7 +238,11 @@ def main():
     session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
 
     pod_list = get_pods_list(k8s_context,k8s_namespace,label_selector,"status.phase=Running")
-    display_pods_and_containers(pod_list)
+    if pod_list:
+        display_pods_and_containers(pod_list)
+    else:
+        print("no pods selected, exiting")
+        sys.exit(6)
 
     tmux_server = libtmux.Server()
     check_session(session_name, tmux_server)
