@@ -14,7 +14,7 @@ from libtmux._internal.query_list import MultipleObjectsReturned
 from pod2container import pod2container as p2c
 from sequences import sequences
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
-from seq_constants import DO_ATTACH, DO_TERMINATE
+from seq_constants import DO_ATTACH, DO_TERMINATE, NO_T_EXEC_OP
 
 
 SLEEP_TIME = 300
@@ -121,23 +121,37 @@ def check_all_complete(state,pods_list):
             all_complete = False
     return all_complete
 
-def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
-    """ execute finit state machine, sequence , step by step """
+def tmux_window_per_pod(sess_handle,pods_list):
+    """ creates new window per each pod in pods_list """
+    for pod in pods_list:
+        print(f"spawining window for {pod}")
+        sess_handle.new_window(attach=False, window_name=pod)
+
+def next_step(state,pod):
+    """ move finite state machine to next step """
+    state['fsm_step_executed'][pod] = False
+    state['fsm_step'][pod] += 1
+
+def initialize_state(pods_list):
+    """ create initial state per each pod """
     state = {}
     state['fsm_step'] = {}
     state['fsm_step_executed'] = {}
     for pod in pods_list:
         state['fsm_step'][pod] = 0
         state['fsm_step_executed'][pod] = False
+    return state
+
+def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
+    """ execute finit state machine, sequence , step by step """
+    state = initialize_state(pods_list)
 
     k8s_context = info['context'] # used within eval
     k8s_namespace = info['namespace'] # used within eval
-    print(f"--- working with context {k8s_context} namespace {k8s_namespace}")
-    for pod in pods_list:
-        print(f"spawining window for {pod}")
-        sess_handle.new_window(attach=False, window_name=pod)
 
-    fsm_prompt = get_fsm_prompt(pods_list,sess_handle,session_name)
+    print(f"--- working with context {k8s_context} namespace {k8s_namespace}")
+    tmux_window_per_pod(sess_handle,pods_list)
+    state['fsm_prompt'] = get_fsm_prompt(pods_list,sess_handle,session_name)
 
     while True :
         for pod in pods_list:
@@ -149,8 +163,11 @@ def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
                 continue
             if sequence[state['fsm_step'][pod]].startswith(COMMENT_TAG):
                 print(f"---# COMMENT: {sequence[state['fsm_step'][pod]]}")
-                state['fsm_step_executed'][pod] = False
-                state['fsm_step'][pod] += 1
+                next_step(state,pod)
+                continue
+            if sequence[state['fsm_step'][pod]].startswith(NO_T_EXEC_OP):
+                next_step(state,pod)
+                continue
             if not state['fsm_step_executed'][pod]:
                 print(f"---- {info['cmd']} {pod} step " +
                     "{state['fsm_step'][pod]} {p2c(pod)} ----")
@@ -169,9 +186,8 @@ def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
                 temp_window = sess_handle.windows.get(window_name = pod)
                 temp_pane = temp_window.panes.get()
                 lines = temp_pane.cmd('capture-pane','-p').stdout
-                if lines[-1].startswith(fsm_prompt[pod]) :
-                    state['fsm_step_executed'][pod] = False
-                    state['fsm_step'][pod] += 1
+                if lines[-1].startswith(state['fsm_prompt'][pod]):
+                    next_step(state,pod)
 
         if check_all_complete(state['fsm_step'],pods_list):
             print("all complete")
@@ -221,9 +237,10 @@ def waiting_message(session_name):
     print("--- ctr+\\ will exit and terminate all tmux sessions ---")
 
 
-def display_pods_and_containers(pod_list):
+def display_pods_and_containers(pods_list):
     """ display selected pods and containers """
-    for pod in pod_list:
+    print("----- selected pods and containers -----")
+    for pod in pods_list:
         print(f"pod : {pod}, container : {p2c(pod)}")
     print("-----------")
 
@@ -254,9 +271,9 @@ def main():
     check_sequence(tmux_cmd)
     session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
 
-    pod_list = get_pods_list(k8s_context,k8s_namespace,label_selector,"status.phase=Running")
-    if pod_list:
-        display_pods_and_containers(pod_list)
+    pods_list = get_pods_list(k8s_context,k8s_namespace,label_selector,"status.phase=Running")
+    if pods_list:
+        display_pods_and_containers(pods_list)
     else:
         print("no pods selected, exiting")
         sys.exit(6)
@@ -285,7 +302,7 @@ def main():
     info['cmd'] = tmux_cmd
     info['context'] = k8s_context
     info['namespace'] = k8s_namespace
-    execute_fsm(pod_list,tmux_handle,sequences[tmux_cmd],info,session_name)
+    execute_fsm(pods_list,tmux_handle,sequences[tmux_cmd],info,session_name)
 
     print("--- all executable sequence steps are executed ---")
     signal.signal(signal.SIGQUIT, signal_handler_terminate)
@@ -298,8 +315,6 @@ def main():
         to_exec = sequences[tmux_cmd][-1][len(FINAL_EXEC):]
         parsed_exec = eval(f'f"{to_exec}"')
         print(f"--- final_exec : {parsed_exec}")
-        #os.execve('/bin/sh',['/bin/sh','-c',parsed_exec],os.environ)
-        #os.system(parsed_exec)
         pid = os.fork()
         if pid == 0:
             os.system(parsed_exec)

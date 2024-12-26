@@ -142,7 +142,8 @@ sequences={
         FINAL_EXEC + 'tail -f -q {k8s_namespace}_logs_*'
         ],
     'dry' : [
-         COMMENT_TAG + ' just echo {k8s_context} {k8s_namespace} {pod} nad p2c(pod) values',
-         "echo \"ctx {k8s_context} ns {k8s_namespace} pod {pod} co {p2c(pod)}\" " 
-         ]
+        COMMENT_TAG + ' just echo {k8s_context} {k8s_namespace} {pod} nad p2c(pod) values',
+        "echo \"ctx {k8s_context} ns {k8s_namespace} pod {pod} co {p2c(pod)}\" ",
+        DO_ATTACH
+        ]
     }
