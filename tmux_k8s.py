@@ -13,36 +13,19 @@ from libtmux._internal.query_list import MultipleObjectsReturned
 
 from pod2container import pod2container as p2c
 from sequences import sequences
+from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
+from seq_constants import DO_ATTACH, DO_TERMINATE
 
-COMMENT_TAG = "# "
-NO_RETURN = "# no return"
-DO_ATTACH = "# attach"
-FINAL_EXEC = "# exec : "
 
-SLEEP_TIME = 300 
-WAIT_FOR_PROMPT_SECONDS = 2
+SLEEP_TIME = 300
+WAIT_FOR_PROMPT_SECONDS = 1
 STEP_COMPLETE = -1
 
 
-def terminate_all(sess_name):
-    """ terminate session """
-    tmux_server = libtmux.Server()
-    try:
-        sess_handle = tmux_server.sessions.get(session_name=sess_name)
-    except ObjectDoesNotExist:
-        print(f"no such object, probably clean {sess_name}")
-        return
-    for window in sess_handle.windows:
-        temp_pane = window.panes.get()
-        lines = temp_pane.cmd('capture-pane','-p').stdout
-        print("->" + lines[len(lines)-3] + " - " +  lines[len(lines)-2])
-        print("terminating ",end="")
-        print(window)
-        window.kill()
-    sess_handle.kill()
-    tmux_server.kill()
-
-
+def signal_handler_detach(sig, _):
+    """ set signal handler for ctr+c """
+    print(f'You pressed Ctrl+C! {sig}, exiting, leaving tmux windows')
+    sys.exit(9)
 
 def get_pods_list(k8s_context,k8s_namespace,label_selector,selector):
     """ fetch pod list from given context,namespace, label_selector """
@@ -57,7 +40,6 @@ def get_pods_list(k8s_context,k8s_namespace,label_selector,selector):
         pods_list.append(item.metadata.name)
     return pods_list
 
-
 def get_fsm_prompt(pods_list,sess_handle,session_name):
     """ tmux on start will get base prompt for given shell, catch that one """
     print("---- waiting for prompt to stabilize")
@@ -68,7 +50,8 @@ def get_fsm_prompt(pods_list,sess_handle,session_name):
         try:
             temp_window = sess_handle.windows.get(window_name = pod)
         except MultipleObjectsReturned:
-            print(f"multiple objects returned for window {pod}, most probably old tmux session, try tmux kill-session -t {session_name}")
+            print(f"multiple objects returned for window {pod}, " +
+                  f"most probably old tmux session, try tmux kill-session -t {session_name}")
             sys.exit(1)
         temp_pane = temp_window.panes.get()
         lines = temp_pane.cmd('capture-pane','-p').stdout
@@ -108,15 +91,22 @@ def check_args(seq,args):
 
     return tmux_cmd,k8s_context,k8s_namespace,label_selector
 
+def check_all_complete(state,pods_list):
+    """ check if state for all pods is complete """
+    all_complete = True
+    for pod in pods_list:
+        if state[pod] != STEP_COMPLETE:
+            all_complete = False
+    return all_complete
 
 def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
     """ execute finit state machine, sequence , step by step """
-    fsm_step = {}
-    fsm_step_executed = {}
+    state = {}
+    state['fsm_step'] = {}
+    state['fsm_step_executed'] = {}
     for pod in pods_list:
-        fsm_step[pod] = 0
-        fsm_step_executed[pod] = False
-
+        state['fsm_step'][pod] = 0
+        state['fsm_step_executed'][pod] = False
 
     k8s_context = info['context'] # used within eval
     k8s_namespace = info['namespace'] # used within eval
@@ -129,35 +119,39 @@ def execute_fsm(pods_list,sess_handle,sequence,info,session_name):
 
     while True :
         for pod in pods_list:
-            if fsm_step[pod] == STEP_COMPLETE:
+            if state['fsm_step'][pod] == STEP_COMPLETE:
                 continue
-            if fsm_step[pod] >= len(sequence):
-                print(f"{pod} -> complete")
-                fsm_step[pod] = STEP_COMPLETE
+            if state['fsm_step'][pod] >= len(sequence):
+                print(f"{pod} -> step complete")
+                state['fsm_step'][pod] = STEP_COMPLETE
                 continue
-            if not fsm_step_executed[pod]:
-                print(f"---- {info['cmd']} {pod} step {fsm_step[pod]} {p2c(pod)} ----")
+            if sequence[state['fsm_step'][pod]].startswith(COMMENT_TAG):
+                print(f"---# COMMENT: {sequence[state['fsm_step'][pod]]}")
+                state['fsm_step_executed'][pod] = False
+                state['fsm_step'][pod] += 1
+            if not state['fsm_step_executed'][pod]:
+                print(f"---- {info['cmd']} {pod} step " +
+                    "{state['fsm_step'][pod]} {p2c(pod)} ----")
                 temp_window = sess_handle.windows.get(window_name = pod)
                 temp_pane = temp_window.panes.get()
-                execute = eval(f"f'{sequence[fsm_step[pod]]}'")
+                execute = eval(f"f'{sequence[state['fsm_step'][pod]]}'")
                 print("executing -> " + execute)
                 temp_pane.send_keys(execute)
-                fsm_step_executed[pod] = True
-                if len(sequence) > fsm_step[pod] and sequence[fsm_step[pod]+1].startswith(COMMENT_TAG):
-                    fsm_step[pod] = STEP_COMPLETE
+                state['fsm_step_executed'][pod] = True
+                if len(sequence) - 1 > state['fsm_step'][pod] and \
+                    sequence[state['fsm_step'][pod]+1].startswith(NO_RETURN):
+                    state['fsm_step'][pod] = STEP_COMPLETE
+                    continue
             else:
                 # fsm step is executed,  waiting for prompt
                 temp_window = sess_handle.windows.get(window_name = pod)
                 temp_pane = temp_window.panes.get()
                 lines = temp_pane.cmd('capture-pane','-p').stdout
-                if fsm_prompt[pod] in lines[len(lines)-1] :
-                    fsm_step_executed[pod] = False
-                    fsm_step[pod] += 1
-        all_complete = True
-        for pod in pods_list:
-            if fsm_step[pod] != STEP_COMPLETE:
-                all_complete = False
-        if all_complete:
+                if lines[-1].startswith(fsm_prompt[pod]) :
+                    state['fsm_step_executed'][pod] = False
+                    state['fsm_step'][pod] += 1
+
+        if check_all_complete(state['fsm_step'],pods_list):
             print("all complete")
             break
 
@@ -171,31 +165,14 @@ def new_tmux_session(tmux_server,session_name):
     return sess_handle
 
 
-def main():
-    """ main function, check args, get params for finite state machine """
-
-    (tmux_cmd,k8s_context,k8s_namespace,label_selector) = check_args(sequences,sys.argv)
-
-    session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
-
-    if tmux_cmd == 'terminate-all' :
-        terminate_all(session_name)
-        sys.exit(0)
-
-    if tmux_cmd not in sequences:
-        print(f"{tmux_cmd} not in allowed commands, check sequences dictionary in sequences.py")
-        sys.exit(1)
-
-    selector = "status.phase=Running"
-    pod_list = get_pods_list(k8s_context,k8s_namespace,label_selector,selector)
-
-    tmux_server = libtmux.Server()
-    tmux_session_exist = True 
+def check_session(session_name,tmux_server):
+    """ check if session already exist, and if it does exit """
+    tmux_session_exist = True
     try:
         tmux_server.sessions.get(session_name=session_name)
     except ObjectDoesNotExist:
         tmux_session_exist = False
-    
+
     if tmux_session_exist:
         print(f"tmux session {session_name} already exist try:")
         print(f"terminating with : tmux kill-session -t {session_name}")
@@ -203,21 +180,35 @@ def main():
         print("exiting")
         sys.exit(5)
 
-    tmux_handle = new_tmux_session(tmux_server,session_name)
 
-    def signal_handler_terminate(sig, _):
-        """ set signal handler for ctr+c """
-        print(f'You pressed Ctrl+C! {sig}, terminating tmux windows')
-        terminate_all()
-        sys.exit(0)
+def check_sequence(tmux_command):
+    """ check is input command available """
+    if tmux_command not in sequences:
+        print(f"{tmux_command} not in allowed commands, check sequences dictionary in sequences.py")
+        sys.exit(1)
 
-    def signal_handler_detach(sig, _):
-        """ set signal handler for ctr+c """
-        print(f'You pressed Ctrl+C! {sig}, exiting, leaving tmux windows')
-        sys.exit(9)
 
-    def terminate_all():
-        """ terminate session """
+def waiting_message(session_name):
+    """ final message before waiting """
+    print(f"--- waiting {SLEEP_TIME} seconds before closing ---")
+    print(f"--- after {SLEEP_TIME} program will exit and leave all tmux_sessions ---")
+    print("--- ctr+c will exit and leave all tmux sessions ---")
+    print(f"---    attach with: tmux attach-session -t {session_name} ---")
+    print("---  or: ---")
+    print(f"---    remove with: tmux kill-session -t {session_name} ---")
+    print("--- ctr+\\ will exit and terminate all tmux sessions ---")
+
+
+def display_pods_and_containers(pod_list):
+    """ display selected pods and containers """
+    for pod in pod_list:
+        print(f"pod : {pod}, container : {p2c(pod)}")
+    print("-----------")
+
+
+def terminate_tmux(tmux_server,tmux_handle):
+    """ terminate tmux handle windows and server """
+    try:
         for window in tmux_handle.windows:
             temp_pane = window.panes.get()
             lines = temp_pane.cmd('capture-pane','-p').stdout
@@ -229,36 +220,69 @@ def main():
             print(window)
             window.kill()
         tmux_server.kill()
+    except libtmux.exc.LibTmuxException as q:
+        print(q)
+
+
+def main():
+    """ main function, check args, get params for finite state machine """
+
+    (tmux_cmd,k8s_context,k8s_namespace,label_selector) = check_args(sequences,sys.argv)
+
+    check_sequence(tmux_cmd)
+    session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
+
+    pod_list = get_pods_list(k8s_context,k8s_namespace,label_selector,"status.phase=Running")
+    display_pods_and_containers(pod_list)
+
+    tmux_server = libtmux.Server()
+    check_session(session_name, tmux_server)
+    tmux_handle = new_tmux_session(tmux_server,session_name)
+
+    def terminate_all():
+        """ terminate session """
+        terminate_tmux(tmux_server,tmux_handle)
+
+    def signal_handler_terminate(sig, _):
+        """ set signal handler for ctr+c """
+        print(f'You pressed Ctrl+C! {sig}, terminating tmux windows')
+        terminate_all()
+        sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler_detach)
     signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-    print("--- ctr+c will exit and leave all tmux sessions, sequence execution will be partially done ---")
+    print("--- ctr+c will exit and leave all tmux sessions," +
+          "sequence execution will be partially done ---")
     print("--- ctr+\\ will be ignored  ---")
- 
+
     info = {}
     info['cmd'] = tmux_cmd
     info['context'] = k8s_context
     info['namespace'] = k8s_namespace
     execute_fsm(pod_list,tmux_handle,sequences[tmux_cmd],info,session_name)
 
-    print(f"--- all executable sequence steps are executed ---")
+    print("--- all executable sequence steps are executed ---")
     signal.signal(signal.SIGQUIT, signal_handler_terminate)
     if sequences[tmux_cmd][-1] == DO_ATTACH:
-        print(f"--- attaching tmux ---")
+        print("--- attaching tmux ---")
         os.execve('/bin/sh',['/bin/sh','-c',f'tmux attach-session -t {session_name}'],os.environ)
+    elif sequences[tmux_cmd][-1].startswith(DO_TERMINATE):
+        terminate_all()
     elif sequences[tmux_cmd][-1].startswith(FINAL_EXEC):
         to_exec = sequences[tmux_cmd][-1][len(FINAL_EXEC):]
         parsed_exec = eval(f"f'{to_exec}'")
-        print(f"--- final_exec : " + parsed_exec)
-        os.execve('/bin/sh',['/bin/sh','-c',parsed_exec],os.environ)
+        print(f"--- final_exec : {parsed_exec}")
+        #os.execve('/bin/sh',['/bin/sh','-c',parsed_exec],os.environ)
+        #os.system(parsed_exec)
+        pid = os.fork()
+        if pid == 0:
+            os.system(parsed_exec)
+        else:
+            os.waitpid(pid,0)
+        print("final exec complete, terminating sessions")
+        terminate_all()
     else:
-        print(f"--- waiting {SLEEP_TIME} seconds before closing ---")
-        print(f"--- after {SLEEP_TIME} program will exit and leave all tmux_sessions ---")
-        print("--- ctr+c will exit and leave all tmux sessions ---")
-        print(f"---    attach with: tmux attach-session -t {session_name} ---")
-        print(f"---  or: ---")
-        print(f"---    remove with: tmux kill-session -t {session_name} ---")
-        print("--- ctr+\\ will exit and terminate all tmux sessions ---")
+        waiting_message(session_name)
         time.sleep(SLEEP_TIME)
 
 

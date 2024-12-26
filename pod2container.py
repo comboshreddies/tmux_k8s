@@ -12,4 +12,7 @@ def pod2container(base_pod_name):
         return 'specific-container-name'
     if re.search(r'^nginx-sample', base_pod_name) :
         return 'nginx'
+    if re.search(r'^busybox1', base_pod_name) :
+        return 'busybox'
+
     return base_pod_name

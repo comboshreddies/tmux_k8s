@@ -1,95 +1,122 @@
 """ this module defines set of available sequences for tmux_k8s """
 
+
+from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
+from seq_constants import DO_ATTACH, DO_TERMINATE
+
+
 KUBE_CTL = "kubectl --context {k8s_context} -n {k8s_namespace} "
 KUBE_CTL_EXEC = KUBE_CTL + " exec {pod} -c {p2c(pod)} -- "
 KUBE_CTL_EXEC_IT = KUBE_CTL + " exec -it {pod} -c {p2c(pod)} -- "
-NO_RETURN = "# no return"
-DO_ATTACH = "# attach"
-FINAL_EXEC = "# exec : "
-KUBE_CTL_LOGS = KUBE_CTL + "logs -f --prefix=true {pod} -c {pod} -c {p2c(pod)}"
+
+# logs is just example, it is simpler to use single kubectl logs with label selector
+KUBE_CTL_LOGS = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2c(pod)}"
 
 sequences={
-    'env' : [ KUBE_CTL_EXEC + 'env > {pod}.env' ],
-    'procTcp' : [ 
+    'env' : [ 
+        COMMENT_TAG + " execute env on each pod and put to pod.env file",
+        KUBE_CTL_EXEC + 'env > {pod}.env'
+        ],
+    'env-ac' : [ 
+        COMMENT_TAG + " execute env on each pod and put to pod.env file, auto close",
+        KUBE_CTL_EXEC + 'env > {pod}.env',
+        DO_TERMINATE
+        ],
+    'procTcp' : [
+        COMMENT_TAG + " get /proc/net/tcp on each then convert it to netstat format",
         KUBE_CTL_EXEC + ' /bin/cat /proc/net/tcp  > {pod}.procTcp.raw',
         'cat {pod}.procTcp.raw | ./proc_netstat.sh > {pod}.procTcp.parsed'
         ],
-    'tcpdump-all' : [ 
+    'tcpdump-all' : [
+        COMMENT_TAG + " tcpdump on any interface all traffic for 300 seconds or 100k packets",
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"apt -y update && apt -y install tcpdump"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
+        KUBE_CTL + 'cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
+        ],
+    'tcpdump-http-80' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install tcpdump"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000"',
-        KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 6379"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
         KUBE_CTL + ' cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
         ],
-    'tcpdump-http-80' : [ 
+    'tcpdump-redis-6379' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install tcpdump"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 6379"',
-        KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
-        KUBE_CTL + ' cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 6379"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
+        KUBE_CTL + 'cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
         ],
-    'tcpdump-redis-6379' : [ 
-        KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install tcpdump"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 6379"',
-        KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
-        KUBE_CTL + ' cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
-        ],
-    'tcpdump-memcache-11211' : [ 
+    'tcpdump-memcache-11211' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update &&apt -y install tcpdump"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 11211"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"timeout 300 tcpdump -i any -w /tmp/{pod}.pcap -s65535 -c 100000 port 11211"',
         KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.pcap.gz && cd /tmp && gzip {pod}.pcap"',
-        KUBE_CTL + ' cp {item.metadata.name}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
+        KUBE_CTL + 'cp {pod}:/tmp/{pod}.pcap.gz -c {p2c(pod)} --retries=4 ./{pod}.pcap.gz'
         ],
-    'strace' : [ 
+    'strace' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install strace psmisc procps"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 300 strace -o /tmp/{pod}.strace -s999999 -yy -tt -T $(pgrep php | awk \'{print " -p " $1 }\'"',
-        KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.strace.gz && cd /tmp && gzip {pod}.strace"',
-        KUBE_CTL + ' cp {item.metadata.name}:/tmp/{pod}.strace.gz -c {p2c(pod)} --retries=4 ./{pod}.strace.gz'
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"timeout 300 strace -o /tmp/{pod}.strace -s999999 -yy -tt -T ' +
+            '$(pgrep php | awk \'{print " -p " $1 }\'"',
+        KUBE_CTL_EXEC + '/bin/bash -c ' +
+            '"rm -f /tmp/{pod}.strace.gz && cd /tmp && gzip {pod}.strace"',
+        KUBE_CTL + 'cp {pod}:/tmp/{pod}.strace.gz -c {p2c(pod)} --retries=4 ./{pod}.strace.gz'
         ],
-    'strace-net-sc' : [ 
+    'strace-net-sc' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install strace psmisc procps"',
-        KUBE_CTL_EXEC + '/bin/bash -c "timeout 30 /usr/bin/strace -o /tmp/{pod}.strace -s999999 -e trace=network -yy -tt -T \\$(pgrep php | xargs -Ix echo -p x  )"',
+        KUBE_CTL_EXEC + '/bin/bash -c "timeout 30' +
+            '/usr/bin/strace -o /tmp/{pod}.strace -s999999 -e trace=network -yy -tt -T ' +
+            '$(pgrep php | xargs -Ix echo -p x  )"',
         KUBE_CTL_EXEC + '/bin/bash -c "rm -f /tmp/{pod}.strace.gz && cd /tmp && gzip {pod}.strace"',
-        KUBE_CTL + ' cp {item.metadata.name}:/tmp/{pod}.strace.gz -c {p2c(pod)} --retries=4 ./{pod}.strace.gz'
+        KUBE_CTL + ' cp {pod}:/tmp/{pod}.strace.gz -c {p2c(pod)} --retries=4 ./{pod}.strace.gz'
         ],
-     'pingKubeSvcHost' : [ 
+     'pingKubeSvcHost' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install iputils-ping"',
         KUBE_CTL_EXEC + '/bin/bash -c "ping -c 10 ' + '\\' + '$KUBERNETES_SERVICE_HOST"'
     ],
-    'tcpdumpInstall' : [ 
+    'tcpdumpInstall' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install tcpdump"'
         ],
-    'straceInstall' : [ 
+    'straceInstall' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install strace"'
     ],
-    'pingInstall' : [ 
+    'pingInstall' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install iputils-ping"'
     ],
-    'psInstall' : [ 
+    'psInstall' : [
         KUBE_CTL_EXEC + '/bin/bash -c "apt -y update && apt -y install psmisc procps"'
     ],
 
-    'ps-tcpdump' : [ 
+    'ps-tcpdump' : [
         KUBE_CTL_EXEC + '/bin/bash -c "ps ax | grep tcpdump"'
         ],
-    'ps-strace' : [ 
+    'ps-strace' : [
         KUBE_CTL_EXEC + '/bin/bash -c "ps ax | grep tcpdump"'
         ],
-    'pgrep-php' : [ 
+    'pgrep-php' : [
         KUBE_CTL_EXEC + '/bin/bash -c "ps ax | grep tcpdump"'
         ],
-    'exec-it-bash' : [ 
+    'exec-it-bash' : [
         KUBE_CTL_EXEC_IT + '/bin/bash',
         NO_RETURN,
         DO_ATTACH
         ],
-    'exec-it-sh' : [ 
+    'exec-it-sh' : [
         KUBE_CTL_EXEC_IT + '/bin/sh',
         NO_RETURN,
         DO_ATTACH
         ],
     'logs1' : [
-    KUBE_CTL_LOGS + ' | sed "s/^/{pod} : /g" > {k8s_namespace}_logs_{pod}_{p2c(pod)}.log',
-    FINAL_EXEC + 'parallel -j0 --lb cat {k8s_namespace}_logs_*'
+    KUBE_CTL_LOGS + ' > {k8s_namespace}_logs_{pod}_{p2c(pod)}.log',
+    NO_RETURN,
+    FINAL_EXEC + 'tail -f -q {k8s_namespace}_logs_*'
     ],
-    'terminate-all' : [],
     'dry' : [ "echo \"ctx {k8s_context} ns {k8s_namespace} pod {pod} co {p2c(pod)}\" " ]
     }
