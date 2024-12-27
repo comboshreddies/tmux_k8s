@@ -9,7 +9,7 @@ executions per each pod, or you want to just execute and exit.
 One can easily make a a shell script to execute some sequence on each pod/container.
 Executing on more than few pods might not be successful on all pods. Having output of 
 many executions on one screen is not practical, and you might need to take a look on 
-your own. 
+your own, one pod at the time. 
 
 With this tool you can attach tmux and take a look, or you can gather results of executions. 
 If you have some actions that you frequently do, like gathering some info from pods, you 
