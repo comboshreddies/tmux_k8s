@@ -20,6 +20,7 @@ from seq_constants import DO_ATTACH, DO_TERMINATE, NO_T_EXEC_OP
 SLEEP_TIME = 330
 WAIT_FOR_PROMPT_SECONDS = 1
 STEP_COMPLETE = -1
+BASE_WINDOW_NAME = 'base'
 
 
 def signal_handler_detach(sig, _):
@@ -28,13 +29,13 @@ def signal_handler_detach(sig, _):
     sys.exit(9)
 
 
-def get_pods_list(k8s_context, k8s_namespace, label_selector, selector):
-    """ fetch pod list from given context,namespace, label_selector """
+def get_pods_list(k8s_context, k8s_namespace, k8s_label_selector, selector):
+    """ fetch pod list from given context,namespace, k8s_label_selector """
     config.load_kube_config(context=k8s_context)
 
     v1 = client.CoreV1Api()
     k8s_ret = v1.list_namespaced_pod(
-        namespace=k8s_namespace, label_selector=label_selector,
+        namespace=k8s_namespace, label_selector=k8s_label_selector,
         field_selector=selector, watch=False)
 
     pods_list = []
@@ -111,11 +112,11 @@ def check_args(seq, args):
     k8s_namespace = args[3]
 
     if len(sys.argv) == 5:
-        label_selector = sys.argv[4]
+        k8s_label_selector = sys.argv[4]
     else:
-        label_selector = ''
+        k8s_label_selector = ''
 
-    return tmux_cmd, k8s_context, k8s_namespace, label_selector
+    return tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector
 
 
 def check_all_complete(state, pods_list):
@@ -149,6 +150,24 @@ def initialize_state(pods_list):
         state['fsm_step'][pod] = 0
         state['fsm_step_executed'][pod] = False
     return state
+
+
+def inform_base_window(pods_list, sess_handle, sequence, info, session_name):
+    """ print basic info of execution to base terminal window """
+    temp_window = sess_handle.windows.get(window_name=BASE_WINDOW_NAME)
+    temp_pane = temp_window.panes.get()
+    execute = "echo '=========================';"
+    execute += f"echo 'BASE WINDOW FOR SESSION {session_name}';"
+    execute += f"INFO: {info['context']} {info['namespace']} {info['label_selector']}"
+    execute += "echo ;"
+    execute += f"echo 'SEQUENCE {sequence}';"
+    execute += "echo 'pods:';"
+    for pod in pods_list:
+        execute += f"echo '   {pod} - {p2c(pod)}';"
+    execute += "echo ;"
+    execute += "echo 'ctrl+b + n for next pod terminal window';"
+    execute += "echo '=========================';"
+    temp_pane.send_keys(execute)
 
 
 def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
@@ -208,7 +227,7 @@ def new_tmux_session(tmux_server, session_name):
     """ get new tmux session """
     tmux_server.cmd('new-session', '-d', '-P', '-F#{session_id}', '-s', session_name)
     sess_handle = tmux_server.sessions.get(session_name=session_name)
-    tmux_server.cmd('rename-window', '-t', f'{session_name}:{0}', 'base')
+    tmux_server.cmd('rename-window', '-t', f'{session_name}:{0}', BASE_WINDOW_NAME)
     print(f"==== new session {session_name} created")
     return sess_handle
 
@@ -276,14 +295,14 @@ def terminate_tmux(tmux_server, tmux_handle):
 def main():
     """ main function, check args, get params for finite state machine """
 
-    (tmux_cmd, k8s_context, k8s_namespace, label_selector) = check_args(sequences, sys.argv)
+    (tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector) = check_args(sequences, sys.argv)
 
     check_sequence(tmux_cmd)
     session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
 
     pods_list = get_pods_list(
         k8s_context, k8s_namespace,
-        label_selector, "status.phase=Running")
+        k8s_label_selector, "status.phase=Running")
     if pods_list:
         display_pods_and_containers(pods_list)
     else:
@@ -310,11 +329,10 @@ def main():
           "sequence execution will be partially done ---")
     print("--- ctr+\\ will be ignored  ---")
 
-    info = {}
-    info['cmd'] = tmux_cmd
-    info['context'] = k8s_context
-    info['namespace'] = k8s_namespace
+    info = {'cmd': tmux_cmd, 'context': k8s_context, 'namespace': k8s_namespace,
+            'label_selector' : k8s_label_selector}
     execute_fsm(pods_list, tmux_handle, sequences[tmux_cmd], info, session_name)
+    inform_base_window(pods_list, tmux_handle, tmux_cmd, info, session_name)
 
     print("--- all executable sequence steps are executed ---")
     signal.signal(signal.SIGQUIT, signal_handler_terminate)

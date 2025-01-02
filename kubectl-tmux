@@ -1,0 +1,5 @@
+#!/bin/sh
+echo example - source your own path to venv and tmux_k8s install
+exit 1
+source ~/GIT/tmux_k8s/x/bin/activate
+~/GIT/tmux_k8s/kubectl_tmux.py $@

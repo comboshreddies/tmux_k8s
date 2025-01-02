@@ -152,7 +152,7 @@ kubernetes kubectl commands were just nice example of running in parallel set of
 like installing tcpdump, running tcpdump, compressing pcap file, copying pcap file to local
 
 
-Parsing: 
+#Parsing: 
 
 Parsing is done by evaluating string, for example sequence
 ```console
@@ -174,7 +174,7 @@ so evaluated sequence that should run via tmux shell  could look like
 kubectl --context some-context -n some-ns exec application-5695f9ff4f-kdzx8 -c main-container -- /bin/bash -c "timeout 300 tcpdump -i any -w /tmp/{application-5695f9ff4f-kdzx8}.pcap -s65535 -c 100000 port 11211
 ```
 
-Best practice:
+#Best practice:
 
 - do always run time limited (timeout) and execution limited commands (like -c in tcpdump), otherwise
 your execution might be left running on a pod for a very long time, and affect normal pod state
@@ -190,9 +190,17 @@ copy script to pod/container, run script, copy back results
 I had an awk script that was pain to quote or escape properly - I've created local shell script
 ./proc_netstat.sh that is added to this repo and you can see how it is used within procTcp sequence
 
----
 
-NOTE:
+# Kubectl plugin kubectl-tmux
+
+kubectl-tmux is a kubectl-plugin that should be used as
+```console
+kubectl tmux exec-it-sh --context minikube -n test-run get pod -l app=busybox1
+```
+in this example exec-it-sh is sequnce available from tmux_k8s tool
+
+
+#NOTE:
 
 If you do not specify attach or terminate as a last sequence step, you will be prompted with option to either:
 ctrl+c to detach tmux_k8s from console while not terminating created tmux_session
