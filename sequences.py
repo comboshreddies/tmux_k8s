@@ -22,6 +22,11 @@ sequences = {
         KUBE_CTL_EXEC + 'env > {pod}.env',
         DO_TERMINATE
     ],
+    'env-at': [
+        COMMENT_TAG + 'execute env on each pod and put to pod.env file, auto attach',
+        KUBE_CTL_EXEC + 'env > {pod}.env',
+        DO_ATTACH
+    ],
     'procTcp': [
         COMMENT_TAG + 'get /proc/net/tcp on each then convert it to netstat format',
         KUBE_CTL_EXEC + ' /bin/cat /proc/net/tcp  > {pod}.procTcp.raw',

@@ -66,11 +66,12 @@ def get_fsm_prompt(pods_list, sess_handle, session_name):
 
 def simple_help(args):
     """ print simple help """
-    print(args[0] + " <sequence> <k8s-context> <k8s-namespace> [<k8s-label-selector>]")
+    p = args[0].split('/')[-1]
+    print(f"{p} <sequence> <k8s-context> <k8s-namespace> [<k8s-label-selector>]")
     print("or to list available sequences")
-    print(args[0] + " list")
+    print(f"{p} list")
     print("or to get details of a sequence")
-    print(args[0] + " info <sequence>")
+    print(f"{p} info <sequence>")
 
 
 def check_2_args(seq, args):

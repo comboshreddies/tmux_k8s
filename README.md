@@ -6,6 +6,7 @@ executions per each pod, or you want to just execute and exit
 
 It can be executed as [kubectl plugin](https://github.com/comboshreddies/tmux_k8s?tab=readme-ov-file#kubectl-plugin-kubectl-tmux)
 
+![tmux_k8s_1](https://github.com/comboshreddies/tmux_k8s/blob/main/docs/tmux_k8s_1.svg?raw=true)
 
 # purpose
 One can easily make a a shell script to execute some sequence on each pod/container.
@@ -194,6 +195,8 @@ I had an awk script that was pain to quote or escape properly - I've created loc
 
 
 # Kubectl plugin kubectl-tmux
+
+![tmux_k8s_2](https://github.com/comboshreddies/tmux_k8s/blob/main/docs/tmux_k8s_2.svg?raw=true)
 
 If you put scripts kubectl-tmux and tmux_k8s in your binary path (you should adjust venv path or 
 global install requirements) kubectl-tmux (shell script) is a kubectl-plugin that should be used as
