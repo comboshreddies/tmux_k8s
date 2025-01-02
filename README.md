@@ -195,12 +195,16 @@ I had an awk script that was pain to quote or escape properly - I've created loc
 
 # Kubectl plugin kubectl-tmux
 
-kubectl-tmux is a kubectl-plugin that should be used as
+If you put scripts kubectl-tmux and tmux_k8s in your binary path (you should adjust venv path or 
+global install requirements) kubectl-tmux (shell script) is a kubectl-plugin that should be used as
 ```console
 kubectl tmux exec-it-sh --context minikube -n test-run get pod -l app=busybox1
 ```
 in this example exec-it-sh is sequnce available from tmux_k8s tool
-
+you can obtain list of available sequences with 
+```console
+tmux_k8s list
+````
 
 # NOTE:
 
