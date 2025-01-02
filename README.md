@@ -2,7 +2,9 @@
 
 Tool tmux_k8s runs multiple executions scripts (sequences) in multiple tmux windows.
 Each window runs script on one pod. You can decide if you want to attach and inspect
-executions per each pod, or you want to just execute and exit.
+executions per each pod, or you want to just execute and exit
+
+It can be executed as [kubectl plugin](https://github.com/comboshreddies/tmux_k8s?tab=readme-ov-file#kubectl-plugin-kubectl-tmux)
 
 
 # purpose
