@@ -4,7 +4,7 @@ import re
 
 
 def pod2container(base_pod_name):
-    """pod to container"""
+    """pod to container used for exec"""
     if re.search(r'^consumer', base_pod_name):
         return base_pod_name.split("-")[0]
     if re.search(r'^producer', base_pod_name):
@@ -15,5 +15,11 @@ def pod2container(base_pod_name):
         return 'nginx'
     if re.search(r'^busybox1', base_pod_name):
         return 'busybox'
+    return base_pod_name
 
+
+def pod2container_log(base_pod_name):
+    """pod to container used for logs"""
+    if re.search(r'^busybox1', base_pod_name):
+        return 'logs'
     return base_pod_name

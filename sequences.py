@@ -10,7 +10,8 @@ KUBE_CTL_EXEC = KUBE_CTL + " exec {pod} -c {p2c(pod)} -- "
 KUBE_CTL_EXEC_IT = KUBE_CTL + " exec -it {pod} -c {p2c(pod)} -- "
 
 # logs is just example, it is simpler to use single kubectl logs with label selector
-KUBE_CTL_LOGS = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2c(pod)}"
+KUBE_CTL_LOGS1 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2c(pod)}"
+KUBE_CTL_LOGS2 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2cLog(pod)}"
 
 sequences = {
     'env': [
@@ -141,10 +142,18 @@ sequences = {
     'logs1': [
         COMMENT_TAG + 'execute kubectl logs on each pod/container, pass it to local file' +
         ', then tail all files to console',
-        KUBE_CTL_LOGS + ' > {k8s_namespace}_logs_{pod}_{p2c(pod)}.log',
+        KUBE_CTL_LOGS1 + ' > {k8s_namespace}_logs_{pod}_{p2c(pod)}.log',
         NO_RETURN,
         FINAL_EXEC + 'tail -f -q {k8s_namespace}_logs_*'
     ],
+    'logs2': [
+        COMMENT_TAG + 'execute kubectl logs on each pod/container, pass it to local file' +
+        ', then tail all files to console',
+        KUBE_CTL_LOGS2 + ' > {k8s_namespace}_logs_{pod}_{p2cLog(pod)}.log',
+        NO_RETURN,
+        FINAL_EXEC + 'tail -f -q {k8s_namespace}_logs_*'
+    ],
+
     'dry': [
         COMMENT_TAG + ' just echo {k8s_context} {k8s_namespace} {pod} nad p2c(pod) values',
         "echo \"ctx {k8s_context} ns {k8s_namespace} pod {pod} co {p2c(pod)}\" ",

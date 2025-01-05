@@ -22,7 +22,17 @@ spec:
       - name: busybox 
         image: busybox:latest
         command: ["/bin/sh"]
-        args: ["-c","while [ true ] ; do sleep 1 ; date ; done"]
-        ports:
-        - containerPort: 80
-
+        args: ["-c","while [ true ] ; do sleep 1 ; date ; date +%s >> /logs/log.file ; done"]
+        volumeMounts:
+        - mountPath: /logs
+          name: logs
+      - name: logs 
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args: ["-c","tail -f /logs/log.file"]
+        volumeMounts:
+        - mountPath: /logs
+          name: logs
+      volumes:
+      - emptyDir: {}
+        name: logs

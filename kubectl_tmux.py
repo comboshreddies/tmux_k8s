@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" kubectl plugin for tmux_k8s """ 
+""" kubectl plugin for tmux_k8s """
 
 import argparse
 import os

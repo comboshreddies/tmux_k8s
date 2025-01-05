@@ -12,6 +12,8 @@ from libtmux._internal.query_list import MultipleObjectsReturned
 
 
 from pod2container import pod2container as p2c
+from pod2container import pod2container_log as p2cLog
+
 from sequences import sequences
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
 from seq_constants import DO_ATTACH, DO_TERMINATE, NO_T_EXEC_OP
@@ -164,7 +166,12 @@ def inform_base_window(pods_list, sess_handle, sequence, info, session_name):
     execute += f"echo 'SEQUENCE {sequence}';"
     execute += "echo 'pods:';"
     for pod in pods_list:
-        execute += f"echo '   {pod} - {p2c(pod)}';"
+        execute += f"echo '   {pod} - '"
+        if p2c(pod) != pod:
+            execute += f"{p2c(pod)}"
+        if p2cLog(pod) != pod:
+            execute += f", {p2cLog(pod)}"
+        execute += ';'
     execute += "echo ;"
     execute += "echo 'ctrl+b + n for next pod terminal window';"
     execute += "echo '=========================';"
@@ -331,7 +338,7 @@ def main():
     print("--- ctr+\\ will be ignored  ---")
 
     info = {'cmd': tmux_cmd, 'context': k8s_context, 'namespace': k8s_namespace,
-            'label_selector' : k8s_label_selector}
+            'label_selector': k8s_label_selector}
     execute_fsm(pods_list, tmux_handle, sequences[tmux_cmd], info, session_name)
     inform_base_window(pods_list, tmux_handle, tmux_cmd, info, session_name)
 
