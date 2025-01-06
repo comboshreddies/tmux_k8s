@@ -228,7 +228,7 @@ First function pod2container ie p2c function is used for selecting main containe
 Second function pod2container_log is used in deployments like sample_deploy3.yaml, where main container you should exec to
 is not the same container as the one you should take logs from.
 
-If you need some additional container selecting logic you should add new function to pod2containe.py, import it in tmux_k8s.py
+If you need some additional container selecting logic you should add new function to pod2container.py, import it in tmux_k8s.py
 and then use it in sequences ie templates within sequences.py .
 
 ## sequences.py

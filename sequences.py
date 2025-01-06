@@ -10,8 +10,8 @@ KUBE_CTL_EXEC = KUBE_CTL + " exec {pod} -c {p2c(pod)} -- "
 KUBE_CTL_EXEC_IT = KUBE_CTL + " exec -it {pod} -c {p2c(pod)} -- "
 
 # logs is just example, it is simpler to use single kubectl logs with label selector
-KUBE_CTL_LOGS1 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2c(pod)}"
-KUBE_CTL_LOGS2 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2cLog(pod)}"
+KUBE_CTL_LOGS1 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2c(pod)} --max-log-requests 100"
+KUBE_CTL_LOGS2 = KUBE_CTL + "logs -f --prefix --timestamps {pod} -c {p2cLog(pod)} --max-log-requests 100"
 
 sequences = {
     'env': [
