@@ -22,9 +22,10 @@ is dedicated to one pod execution, so you have terminal for each pod, do ctrl+b+
 go to next pod window.
 
 This tool is more a generic tmux-kubectl framework that you should check and adjust to your needs.
+
 Files that you should check and adjusted to your needs are:
-sequences.py - defines set of sequences that one could run with this tool
-pod2container.py - defines a function that should provide name of container for given pod-name
+* sequences.py - defines set of sequences that one could run with this tool
+* pod2container.py - defines a set functions that should provide name of container for given pod-name
 
 
 
@@ -208,6 +209,40 @@ you can obtain list of available sequences with
 ```console
 tmux_k8s list
 ````
+
+# Customizing and Extending
+
+## pod2container.py
+
+There are two pod2container functions that tmux_k8s imports in shortened form.
+```python
+from pod2container import pod2container as p2c
+from pod2container import pod2container_log as p2cLog
+```
+
+Both functions are imported in shortened form to make scripts/tempaltes from sequences.py compact.
+Both functions are used to convert pod name (input argument) to container name.
+
+First function pod2container ie p2c function is used for selecting main container for most operations (like exec, cp or such).
+
+Second function pod2container_log is used in deployments like sample_deploy3.yaml, where main container you should exec to
+is not the same container as the one you should take logs from.
+
+If you need some additional container selecting logic you should add new function to pod2containe.py, import it in tmux_k8s.py
+and then use it in sequences ie templates within sequences.py .
+
+## sequences.py
+
+Dictionary called sequences from sequences.py is imported in tmux_k8s, and it is used as source of all available scripts, sequences
+within tmux_k8s. There are few simple rules:
+* if first item in a list of sequences begins with a COMMENT_TAG, it is used as a help displayed in tmux_k8s list of commands
+* you can use as many comments you like, comments will be displayed while executing selected sequence
+* within sequence you can use braces to fetch any variable that is available to execute_fsm function - a function in tmux_k8s that executes each step of selected sequence on each selected pod
+* as a final step you can use few predefined contants defined in seq_constants:
+  * NO_RETURN instructs main sequence execution that last function should not return value, so sequence should be considered complete, otherwise execution will wait for prompt, ie return from shell executed command
+  * DO_ATTACH as a last function step instructs tmux_k8s that after all sequences are complete, tmux_k8s should attach you to tmux session
+  * DO_TERMINATE - after execution of all sequences tmux_k8s will terminate session an close all terminal windows.
+  * FINAL_EXEC will execute final execution on local tmux_k8s running machine once all sequences are done (weather complete or not)
 
 # NOTE:
 
