@@ -235,9 +235,9 @@ and then use it in sequences ie templates within sequences.py .
 
 Dictionary called sequences from sequences.py is imported in tmux_k8s, and it is used as source of all available scripts, sequences
 within tmux_k8s. There are few simple rules:
-* if first item in a list of sequences begins with a COMMENT_TAG, it is used as a help displayed in tmux_k8s list of commands
-* you can use as many comments you like, comments will be displayed while executing selected sequence
-* within sequence you can use braces to fetch any variable that is available to execute_fsm function - a function in tmux_k8s that executes each step of selected sequence on each selected pod
+* if first item in a list of sequences begins with a COMMENT_TAG, it is used as a help displayed in tmux_k8s list command
+* you can use as many comments as you like, comments will be displayed while executing selected sequence
+* within sequence you can use braces to fetch any variable or function that is available to execute_fsm function - a function in tmux_k8s that executes each step of selected sequence on each selected pod.
 * as a final step you can use few predefined contants defined in seq_constants:
   * NO_RETURN instructs main sequence execution that last function should not return value, so sequence should be considered complete, otherwise execution will wait for prompt, ie return from shell executed command
   * DO_ATTACH as a last function step instructs tmux_k8s that after all sequences are complete, tmux_k8s should attach you to tmux session
@@ -251,5 +251,4 @@ ctrl+c to detach tmux_k8s from console while not terminating created tmux_sessio
 ctrl+\ to terminate session and exit
 
 This option will stay in console/terminal for configurable 330 seconds, after 330 sec expire tmux_k8s will leave tmux session.
-
 
