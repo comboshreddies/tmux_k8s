@@ -32,7 +32,7 @@ Files that you should check and adjusted to your needs are:
 # syntax
 syntax for running is:
 ```console
-./tmux_k8s <sequence_name> <k8s_context> <k8s_namespace> [<k8s-label-selector>]
+./tmux_k8s <sequence_name> <k8s_context> <k8s_namespace> [<k8s-label-selector>]  [<pods_list>]
 or
 ./tmux_k8s list
 or
@@ -46,6 +46,7 @@ When sequence_name is selected, from those available in list, pods are selected 
 context (k8s_context argument) and namespace (k8s_namespace argument) and optionally sub 
 selected by label selector. Label selector is optional parameter.
 
+pods_list is a list of pods separated by comma, ie ',' simbol
 
 # example 1:
 

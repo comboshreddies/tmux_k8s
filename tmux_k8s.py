@@ -69,7 +69,7 @@ def get_fsm_prompt(pods_list, sess_handle, session_name):
 def simple_help(args):
     """ print simple help """
     p = args[0].split('/')[-1]
-    print(f"{p} <sequence> <k8s-context> <k8s-namespace> [<k8s-label-selector>]")
+    print(f"{p} <sequence> <k8s-context> <k8s-namespace> [<k8s-label-selector>] [<pods_list>]")
     print("or to list available sequences")
     print(f"{p} list")
     print("or to get details of a sequence")
@@ -114,12 +114,21 @@ def check_args(seq, args):
     k8s_context = args[2]
     k8s_namespace = args[3]
 
+    pods_filter = []
     if len(sys.argv) == 5:
         k8s_label_selector = sys.argv[4]
+        if k8s_label_selector and len(k8s_label_selector.split('=')) == 1:
+            pods_filter = k8s_label_selector.split(',')
+            k8s_label_selector = ''
     else:
         k8s_label_selector = ''
+        pods_filter = []
 
-    return tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector
+    if len(sys.argv) == 6:
+        k8s_label_selector = sys.argv[4]
+        pods_filter = sys.argv[5].split(',')
+
+    return tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector, pods_filter
 
 
 def check_all_complete(state, pods_list):
@@ -303,7 +312,8 @@ def terminate_tmux(tmux_server, tmux_handle):
 def main():
     """ main function, check args, get params for finite state machine """
 
-    (tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector) = check_args(sequences, sys.argv)
+    (tmux_cmd, k8s_context, k8s_namespace, k8s_label_selector,
+        pods_filter) = check_args(sequences, sys.argv)
 
     check_sequence(tmux_cmd)
     session_name = f'{tmux_cmd}-{k8s_context}-{k8s_namespace}'
@@ -311,6 +321,10 @@ def main():
     pods_list = get_pods_list(
         k8s_context, k8s_namespace,
         k8s_label_selector, "status.phase=Running")
+    if pods_filter:
+        for item in pods_list.copy():
+            if item not in pods_filter:
+                pods_list.remove(item)
     if pods_list:
         display_pods_and_containers(pods_list)
     else:

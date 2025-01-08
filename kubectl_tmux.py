@@ -18,6 +18,7 @@ def main():
     parser.add_argument('sequence', type=ascii, help='sequence')
     parser.add_argument('get', type=ascii, help='get')
     parser.add_argument('object', type=ascii, help='object')
+    parser.add_argument('names', nargs='*', type=ascii, help='object')
 
     args = parser.parse_args()
 
@@ -44,6 +45,11 @@ def main():
     if value:
         arg_list += " " + value[1:-1]
 
+    value = getattr(args, 'names', None)
+    if value:
+        arg_list += " " + ",".join(value)
+
+    print(f"tmux_k8s {args.sequence[1:-1]} {arg_list}")
     os.system(f"tmux_k8s {args.sequence[1:-1]} {arg_list}")
 
 
