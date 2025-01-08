@@ -216,7 +216,7 @@ def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
             if not state['fsm_step_executed'][pod]:
                 print(
                     f"---- {info['cmd']} {pod} step " +
-                    "{state['fsm_step'][pod]} {p2c(pod)} ----")
+                    f"{state['fsm_step'][pod]} {p2c(pod)} ----")
                 temp_window = sess_handle.windows.get(window_name=pod)
                 temp_pane = temp_window.panes.get()
                 execute = eval(f"f'{sequence[state['fsm_step'][pod]]}'")
@@ -225,7 +225,7 @@ def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
                 state['fsm_step_executed'][pod] = True
                 if len(sequence) - 1 > state['fsm_step'][pod] and \
                         sequence[state['fsm_step'][pod] + 1].startswith(NO_RETURN):
-                    state['fsm_step'][pod] = STEP_COMPLETE
+                    next_step(state, pod)
                     continue
             else:
                 # fsm step is executed,  waiting for prompt

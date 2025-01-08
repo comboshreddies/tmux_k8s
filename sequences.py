@@ -138,6 +138,8 @@ sequences = {
         COMMENT_TAG + 'execute sh on each pod in interactive mode and attach to tmux',
         KUBE_CTL_EXEC_IT + '/bin/sh',
         NO_RETURN,
+        'env',
+        NO_RETURN,
         DO_ATTACH
     ],
     'exec-it-sh': [
