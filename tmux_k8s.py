@@ -17,7 +17,7 @@ from pod2container import pod2container_log as p2cLog
 from sequences import sequences
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
 from seq_constants import DO_ATTACH, DO_TERMINATE, NO_T_EXEC_OP
-from seq_constants import DO_SLEEP
+from seq_constants import DO_SLEEP, REFRESH_PROMPT
 
 SLEEP_TIME = 330
 WAIT_FOR_PROMPT_SECONDS = 1
@@ -210,6 +210,13 @@ def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
                 print(f"---# COMMENT: {sequence[state['fsm_step'][pod]]}")
                 next_step(state, pod)
                 continue
+            if sequence[state['fsm_step'][pod]].startswith(REFRESH_PROMPT):
+                temp_window = sess_handle.windows.get(window_name=pod)
+                temp_pane = temp_window.panes.get()
+                lines = temp_pane.cmd('capture-pane', '-p').stdout
+                state['fsm_prompt'][pod] = lines[-1]
+                next_step(state, pod)
+                continue
             if sequence[state['fsm_step'][pod]].startswith(DO_SLEEP):
                 to_sleep = int(sequence[state['fsm_step'][pod]][len(DO_SLEEP):])
                 print("executing -> " +  sequence[state['fsm_step'][pod]])
@@ -230,7 +237,8 @@ def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
                 temp_pane.send_keys(execute)
                 state['fsm_step_executed'][pod] = True
                 if len(sequence) - 1 > state['fsm_step'][pod] and \
-                        sequence[state['fsm_step'][pod] + 1].startswith(NO_RETURN):
+                        ( sequence[state['fsm_step'][pod] + 1].startswith(NO_RETURN) or \
+                        sequence[state['fsm_step'][pod] + 1].startswith(REFRESH_PROMPT) ):
                     next_step(state, pod)
                     continue
             else:

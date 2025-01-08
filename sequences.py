@@ -3,6 +3,8 @@
 
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
 from seq_constants import DO_ATTACH, DO_TERMINATE, DO_SLEEP
+from seq_constants import REFRESH_PROMPT 
+
 
 
 KUBE_CTL = "kubectl --context {k8s_context} -n {k8s_namespace} "
@@ -146,7 +148,10 @@ sequences = {
         NO_RETURN,
         DO_SLEEP + "4",
         'date',
-        NO_RETURN,
+        REFRESH_PROMPT,
+        'date',
+        'date',
+        'date',
         DO_ATTACH
     ],
     'exec-it-sh': [
