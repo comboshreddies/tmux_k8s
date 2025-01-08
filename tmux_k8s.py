@@ -17,7 +17,7 @@ from pod2container import pod2container_log as p2cLog
 from sequences import sequences
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
 from seq_constants import DO_ATTACH, DO_TERMINATE, NO_T_EXEC_OP
-
+from seq_constants import DO_SLEEP
 
 SLEEP_TIME = 330
 WAIT_FOR_PROMPT_SECONDS = 1
@@ -208,6 +208,12 @@ def execute_fsm(pods_list, sess_handle, sequence, info, session_name):
                 continue
             if sequence[state['fsm_step'][pod]].startswith(COMMENT_TAG):
                 print(f"---# COMMENT: {sequence[state['fsm_step'][pod]]}")
+                next_step(state, pod)
+                continue
+            if sequence[state['fsm_step'][pod]].startswith(DO_SLEEP):
+                to_sleep = int(sequence[state['fsm_step'][pod]][len(DO_SLEEP):])
+                print("executing -> " +  sequence[state['fsm_step'][pod]])
+                time.sleep(to_sleep)
                 next_step(state, pod)
                 continue
             if sequence[state['fsm_step'][pod]].startswith(NO_T_EXEC_OP):

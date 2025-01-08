@@ -2,7 +2,7 @@
 
 
 from seq_constants import COMMENT_TAG, NO_RETURN, FINAL_EXEC
-from seq_constants import DO_ATTACH, DO_TERMINATE
+from seq_constants import DO_ATTACH, DO_TERMINATE, DO_SLEEP
 
 
 KUBE_CTL = "kubectl --context {k8s_context} -n {k8s_namespace} "
@@ -138,7 +138,14 @@ sequences = {
         COMMENT_TAG + 'execute sh on each pod in interactive mode and attach to tmux',
         KUBE_CTL_EXEC_IT + '/bin/sh',
         NO_RETURN,
+        COMMENT_TAG + 'no return after a command instructs not to wait for localhost prompt',
+        COMMENT_TAG + 'so next line is executed/sent to kubectl shell',
         'env',
+        NO_RETURN,
+        'date',
+        NO_RETURN,
+        DO_SLEEP + "4",
+        'date',
         NO_RETURN,
         DO_ATTACH
     ],
